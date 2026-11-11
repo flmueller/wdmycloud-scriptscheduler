@@ -1,0 +1,23 @@
+# Script Scheduler - Zeitplan
+#
+# Jede Zeile startet ein Skript aus dem Ordner "scripts" (neben dieser Datei):
+#
+#   Minute Stunde Tag Monat Wochentag  Skript  [Argumente]
+#   @boot                              Skript  [Argumente]
+#
+#   Minute 0-59, Stunde 0-23, Tag 1-31, Monat 1-12 (oder jan-dec),
+#   Wochentag 0-7 (0 und 7 = Sonntag, oder sun-sat)
+#   Erlaubt sind *, Listen (1,15), Bereiche (1-5) und Schritte (*/10, 0-30/5).
+#   @boot startet das Skript einmal nach dem Hochfahren des NAS.
+#
+# Beispiele:
+#   30 2 * * *     backup.sh            täglich um 02:30 Uhr
+#   */15 * * * *   check.sh             alle 15 Minuten
+#   0 6 * * 1-5    report.sh --kurz     werktags um 06:00 Uhr
+#   @boot          setup.sh             nach jedem Neustart
+#
+# Zeilen mit "#" sind Kommentare. Mit "#off " am Zeilenanfang ist ein Eintrag
+# deaktiviert (so macht es auch die Web-Oberfläche). Änderungen an dieser
+# Datei werden automatisch innerhalb einer Minute übernommen.
+
+#off */5 * * * * @EXAMPLE@

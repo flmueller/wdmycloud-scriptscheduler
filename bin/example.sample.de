@@ -1,0 +1,5 @@
+#!/bin/sh
+# Beispielskript: Alles, was das Skript ausgibt, landet im Log (logs/@EXAMPLE@.log).
+# Skripte laufen als root. Argumente aus dem Zeitplan stehen in $1, $2, ...
+
+echo "Hallo vom NAS $(hostname), es ist $(date '+%H:%M:%S')."

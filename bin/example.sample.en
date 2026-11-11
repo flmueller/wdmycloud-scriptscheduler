@@ -1,0 +1,5 @@
+#!/bin/sh
+# Example script: everything the script prints ends up in the log (logs/@EXAMPLE@.log).
+# Scripts run as root. Arguments from the schedule are available as $1, $2, ...
+
+echo "Hello from NAS $(hostname), it is $(date '+%H:%M:%S')."

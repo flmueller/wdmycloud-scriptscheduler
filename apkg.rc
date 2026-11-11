@@ -1,0 +1,20 @@
+Package:	scriptscheduler
+Section:	Addon
+Version:	1.1.0
+Packager:	flmueller
+Email:
+Homepage:	https://github.com/flmueller/wdmycloud-scriptscheduler
+Description:	Run your own shell scripts on a schedule.
+Icon:		scriptscheduler.png
+AddonShowName:	Script Scheduler
+AddonIndexPage:	index.php
+AddonUsedPort:
+InstDepend:
+InstConflict:
+StartDepend:
+StartConflict:
+CenterType:	1
+UserControl:	1
+MinFWVer:
+MaxFWVer:
+IndividualFlag:	0
