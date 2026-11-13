@@ -174,13 +174,13 @@ function schedule_entries()
 			continue;
 		}
 		$f = preg_split('/[ \t]+/', trim($line));
-		$boot = ($f[0] === '@boot');
+		$boot = (strncmp($f[0], '@boot', 5) === 0);
 		$n = $boot ? 1 : 5;
 		$entry = array(
 			'line' => $i + 1,
 			'enabled' => $enabled,
 			'boot' => $boot,
-			'expr' => $boot ? '@boot' : implode(' ', array_slice($f, 0, 5)),
+			'expr' => $boot ? $f[0] : implode(' ', array_slice($f, 0, 5)),
 			'script' => isset($f[$n]) ? $f[$n] : '',
 			'args' => implode(' ', array_slice($f, $n + 1)),
 			'error' => isset($errors[$i + 1]) ? $errors[$i + 1] : null,
@@ -388,7 +388,7 @@ case 'sched_save':
 	$expr = trim(preg_replace('/\s+/', ' ', isset($p['expr']) ? (string)$p['expr'] : ''));
 	$args = trim(isset($p['args']) ? (string)$p['args'] : '');
 	if (preg_match('/[\r\n\0]/', $expr . $args)) fail(T('newline'));
-	if ($expr !== '@boot' && count(explode(' ', $expr)) !== 5) {
+	if (!preg_match('/^@boot(\+\d{1,4})?$/', $expr) && count(explode(' ', $expr)) !== 5) {
 		fail(T('fields'));
 	}
 	$new = $expr . ' ' . $script . ($args !== '' ? ' ' . $args : '');

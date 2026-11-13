@@ -1,9 +1,12 @@
 # Parser for schedule.conf.
 #
 #   awk -f cron.awk -v mode=match -v m=5 -v h=14 -v dom=11 -v mon=11 -v dow=3 schedule.conf
-#       prints "script<TAB>args" for every enabled entry that is due at that time
-#   awk -f cron.awk -v mode=boot schedule.conf
-#       prints "script<TAB>args" for every enabled @boot entry
+#       prints "schedule<TAB>script<TAB>args" for every enabled entry that is due at that time
+#   awk -f cron.awk -v mode=boot [-v from=SEC -v to=SEC] schedule.conf
+#       prints "boot<TAB>script<TAB>args" for every enabled @boot / @boot+N entry.
+#       With from/to (uptime in seconds) only entries whose delay of N minutes
+#       was reached in the window from < N*60 <= to. mode=match accepts
+#       from/to as well and then prints those boot entries too.
 #   awk -f cron.awk -v mode=check [-v lang=de] schedule.conf
 #       prints "line<TAB>message" for every invalid entry (enabled or "#off")
 
@@ -20,6 +23,9 @@ BEGIN {
 	T_ALLOWED = de ? "erlaubt" : "allowed"
 	T_EMPTY = de ? "leer" : "empty"
 	T_EXPECT = de ? "Erwartet: Minute Stunde Tag Monat Wochentag Skript [Argumente]" : "Expected: minute hour day month weekday script [arguments]"
+	T_BOOT = de ? "Erwartet: @boot oder @boot+Minuten (0-1440)" : "Expected: @boot or @boot+minutes (0-1440)"
+	window = (to != "")
+	from += 0; to += 0
 	T_NOSCRIPT = de ? "Skriptname fehlt" : "Script name missing"
 	T_BADSCRIPT = de ? "Ungültiger Skriptname" : "Invalid script name"
 	T_CHARS = de ? "erlaubt: Buchstaben, Ziffern, . _ -" : "allowed: letters, digits, . _ -"
@@ -80,8 +86,11 @@ function valid_script(s) {
 	if (NF == 0) next
 
 	err = ""
-	if ($1 == "@boot") {
+	if ($1 ~ /^@boot/) {
 		nsched = 1
+		delay = 0
+		if ($1 ~ /^@boot\+[0-9]+$/ && length($1) <= 10 && substr($1, 7) + 0 <= 1440) delay = substr($1, 7) + 0
+		else if ($1 != "@boot") err = T_BOOT
 	} else {
 		nsched = 5
 		if (NF < 6) {
@@ -111,12 +120,12 @@ function valid_script(s) {
 	for (i = 1; i <= nsched + 1; i++) sub(/^[ \t]*[^ \t]+/, "", args)
 	sub(/^[ \t]+/, "", args)
 
-	if (mode == "boot") {
-		if (nsched == 1) print script "\t" args
-	} else if (mode == "match" && nsched == 5) {
+	if (nsched == 1) {
+		if (window ? (delay * 60 > from && delay * 60 <= to) : (mode == "boot")) print "boot\t" script "\t" args
+	} else if (mode == "match") {
 		# like cron: if both day-of-month and weekday are restricted, either may match
 		if ($3 !~ /^\*/ && $5 !~ /^\*/) day = (okdom || okdow)
 		else day = (okdom && okdow)
-		if (okm && okh && okmon && day) print script "\t" args
+		if (okm && okh && okmon && day) print "schedule\t" script "\t" args
 	}
 }

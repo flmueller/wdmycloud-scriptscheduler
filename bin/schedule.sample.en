@@ -4,17 +4,20 @@
 #
 #   minute hour day month weekday  script  [arguments]
 #   @boot                          script  [arguments]
+#   @boot+N                        script  [arguments]
 #
 #   minute 0-59, hour 0-23, day 1-31, month 1-12 (or jan-dec),
 #   weekday 0-7 (0 and 7 = Sunday, or sun-sat)
 #   Allowed are *, lists (1,15), ranges (1-5) and steps (*/10, 0-30/5).
-#   @boot starts the script once after the NAS has booted.
+#   @boot starts the script once after the NAS has booted,
+#   @boot+N only N minutes after boot (N = 1-1440).
 #
 # Examples:
 #   30 2 * * *     backup.sh            daily at 02:30
 #   */15 * * * *   check.sh             every 15 minutes
 #   0 6 * * 1-5    report.sh --short    on weekdays at 06:00
 #   @boot          setup.sh             after every restart
+#   @boot+5        setup.sh             5 minutes after every restart
 #
 # Lines starting with "#" are comments. "#off " at the start of a line
 # disables an entry (the web interface does the same). Changes to this

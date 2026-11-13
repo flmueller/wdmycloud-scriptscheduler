@@ -117,6 +117,8 @@
 					</select>
 				</div>
 				<div class="ssch-row" data-for="minutes"><label for="ssch-e-every" data-t="lInterval">Interval</label><input type="number" id="ssch-e-every" min="1" max="59" value="15"> <span data-t="minutes">minutes</span></div>
+				<div class="ssch-row" data-for="boot"><label for="ssch-e-delay" data-t="lDelay">Delay</label><input type="number" id="ssch-e-delay" min="0" max="1440" value="0"> <span data-t="minutes">minutes</span>
+					<div class="ssch-small" style="width:100%;padding-left:118px" data-t="delayHint"></div></div>
 				<div class="ssch-row" data-for="hourly"><label for="ssch-e-minute" data-t="lAtMinute">At minute</label><input type="number" id="ssch-e-minute" min="0" max="59" value="0"></div>
 				<div class="ssch-row ssch-days" data-for="weekly"><label data-t="lWeekdays">Weekdays</label>
 					<span id="ssch-e-days"></span>
@@ -203,6 +205,9 @@
 		tMonthly: ["monatlich", "monthly"],
 		tBoot: ["beim Start des NAS", "when the NAS starts"],
 		tCron: ["Experte (Cron-Ausdruck)", "Expert (cron expression)"],
+		lDelay: ["Verzögerung", "Delay"],
+		delayHint: ["Wartezeit nach dem Hochfahren, bevor das Skript startet (0 = sofort).", "Time to wait after boot before the script starts (0 = immediately)."],
+		dBootDelay: ["{0} min nach dem Start des NAS", "{0} min after the NAS starts"],
 		lInterval: ["Abstand", "Interval"],
 		minutes: ["Minuten", "minutes"],
 		lAtMinute: ["Zur Minute", "At minute"],
@@ -356,10 +361,11 @@
 
 	// "30 2 * * *" -> {type: 'daily', ...}; anything unusual stays a raw cron expression
 	function parseExpr(expr) {
-		if (expr === '@boot') return { type: 'boot' };
+		var m = /^@boot(?:\+(\d+))?$/.exec(expr);
+		if (m) return { type: 'boot', delay: +(m[1] || 0) };
 		var f = expr.split(' ');
 		if (f.length !== 5) return { type: 'cron' };
-		var num = /^\d+$/, m;
+		var num = /^\d+$/;
 		if (f[1] === '*' && f[2] === '*' && f[3] === '*' && f[4] === '*') {
 			if (f[0] === '*') return { type: 'minutes', every: 1 };
 			if ((m = /^\*\/(\d+)$/.exec(f[0])) && +m[1] >= 1 && +m[1] <= 59) return { type: 'minutes', every: +m[1] };
@@ -379,7 +385,7 @@
 	function describe(expr) {
 		var p = parseExpr(expr);
 		switch (p.type) {
-			case 'boot': return t('dBoot');
+			case 'boot': return p.delay ? t('dBootDelay', p.delay) : t('dBoot');
 			case 'minutes': return p.every === 1 ? t('dMinute') : t('dMinutes', p.every);
 			case 'hourly': return t('dHourly', pad(p.minute));
 			case 'daily': return t('dDaily', p.time);
@@ -539,6 +545,7 @@
 		$('ssch-e-type').value = p.type;
 		$('ssch-e-every').value = p.every || 15;
 		$('ssch-e-minute').value = p.minute || 0;
+		$('ssch-e-delay').value = p.delay || 0;
 		$('ssch-e-time').value = p.time || '03:00';
 		$('ssch-e-dom').value = p.dom || 1;
 		$('ssch-e-cron').value = (en && !en.boot) ? en.expr : '';
@@ -559,7 +566,10 @@
 
 	function buildExpr() {
 		var type = $('ssch-e-type').value;
-		if (type === 'boot') return '@boot';
+		if (type === 'boot') {
+			var d = intIn('ssch-e-delay', 0, 1440, t('lDelay'));
+			return d ? '@boot+' + d : '@boot';
+		}
 		if (type === 'cron') {
 			var c = $('ssch-e-cron').value.trim().replace(/\s+/g, ' ');
 			if (c.split(' ').length !== 5) throw new Error(t('eCron'));

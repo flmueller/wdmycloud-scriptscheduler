@@ -5,7 +5,7 @@ shell scripts on a schedule. Manage everything from the dashboard (Apps →
 Script Scheduler → Configure) or by editing plain files.
 
 - Schedule entries: every N minutes, hourly, daily, on weekdays, monthly, at NAS
-  start-up (`@boot`) or any cron expression; entries can be disabled.
+  start-up (`@boot`, optionally delayed: `@boot+5`) or any cron expression; entries can be disabled.
 - Scripts: create and edit in the dashboard, run now, stop, view the log and exit code.
 - German and English. The app follows the NAS language setting: German if the
   dashboard is set to German, English otherwise.
@@ -37,7 +37,8 @@ Data folder (change it in the app under "Storage location", default
     logs/<script>.log  output and exit code of every run (trimmed above 1 MB)
 
 Schedule lines: `minute hour day month weekday script [arguments]` or
-`@boot script [arguments]`. A leading `#off ` disables an entry. File changes
+`@boot script [arguments]` (once after boot; `@boot+N` waits N minutes after
+boot, N up to 1440). A leading `#off ` disables an entry. File changes
 take effect from the next minute.
 
 ## Behaviour
@@ -96,7 +97,8 @@ Datenordner (in der App unter „Speicherort“ änderbar, Standard
     logs/<Skript>.log  Ausgabe und Exit-Code jedes Laufs (wird ab 1 MB gekürzt)
 
 Zeitplan-Zeilen: `Minute Stunde Tag Monat Wochentag Skript [Argumente]` oder
-`@boot Skript [Argumente]` (einmal nach dem Hochfahren). `#off ` am Zeilenanfang
+`@boot Skript [Argumente]` (einmal nach dem Hochfahren; `@boot+N` wartet damit
+N Minuten, höchstens 1440). `#off ` am Zeilenanfang
 deaktiviert einen Eintrag. Änderungen an den Dateien wirken ab der nächsten Minute.
 
 ### Verhalten
