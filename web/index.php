@@ -570,9 +570,9 @@
 			return (n === 1 ? '*' : '*/' + n) + ' * * * *';
 		}
 		if (type === 'hourly') return intIn('ssch-e-minute', 0, 59, t('minute')) + ' * * * *';
-		var t = /^(\d{1,2}):(\d{2})/.exec($('ssch-e-time').value);
-		if (!t || +t[1] > 23 || +t[2] > 59) throw new Error(t('eTime'));
-		var hm = (+t[2]) + ' ' + (+t[1]);
+		var tm = /^(\d{1,2}):(\d{2})/.exec($('ssch-e-time').value);
+		if (!tm || +tm[1] > 23 || +tm[2] > 59) throw new Error(t('eTime'));
+		var hm = (+tm[2]) + ' ' + (+tm[1]);
 		if (type === 'daily') return hm + ' * * *';
 		if (type === 'monthly') return hm + ' ' + intIn('ssch-e-dom', 1, 31, t('lDom')) + ' * *';
 		var days = Array.prototype.filter.call($('ssch-e-days').querySelectorAll('input'), function (cb) { return cb.checked; }).map(function (cb) { return +cb.value; });
