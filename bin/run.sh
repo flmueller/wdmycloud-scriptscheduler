@@ -17,6 +17,10 @@ case "$name" in
 esac
 
 ensure_data_dir
+if ! _bad="$(data_trusted)"; then
+	echo "not started: $_bad must belong to root and not be writable by others" >&2
+	exit 126
+fi
 script="$SCRIPTS_DIR/$name"
 log="$LOG_DIR/$name.log"
 status="$STATUS_DIR/$name"
@@ -28,6 +32,7 @@ if [ "$(ui_lang)" = de ]; then
 	case "$trigger" in schedule) tname="Zeitplan" ;; manual) tname="manuell" ;; boot) tname="Systemstart" ;; *) tname="$trigger" ;; esac
 	M_SKIP="Übersprungen ($tname): vorheriger Lauf ist noch aktiv"
 	M_MISSING="Fehler ($tname): Skript nicht gefunden:"
+	M_UNSAFE="Fehler ($tname): nicht gestartet, das Skript gehört nicht root oder ist für andere Benutzer schreibbar:"
 	M_START="Start ($tname)"
 	M_CRLF="(Hinweis: Skript hat Windows-Zeilenenden (CRLF); es wird eine bereinigte Kopie ausgeführt.)"
 	M_END="Ende: Exit-Code %s, Dauer %s s"
@@ -35,6 +40,7 @@ else
 	case "$trigger" in schedule) tname="schedule" ;; manual) tname="manual" ;; boot) tname="boot" ;; *) tname="$trigger" ;; esac
 	M_SKIP="Skipped ($tname): previous run is still active"
 	M_MISSING="Error ($tname): script not found:"
+	M_UNSAFE="Error ($tname): not started, the script does not belong to root or is writable by other users:"
 	M_START="Start ($tname)"
 	M_CRLF="(Note: the script has Windows line endings (CRLF); running a cleaned copy.)"
 	M_END="End: exit code %s, duration %s s"
@@ -60,6 +66,12 @@ if [ ! -f "$script" ]; then
 	echo "===== $(ts) $M_MISSING $script =====" >> "$log"
 	write_status "state=done" "exit=127" "start=$start" "end=$start" "trigger=$trigger"
 	exit 127
+fi
+
+if ! is_private "$script"; then
+	echo "===== $(ts) $M_UNSAFE $script =====" >> "$log"
+	write_status "state=done" "exit=126" "start=$start" "end=$start" "trigger=$trigger"
+	exit 126
 fi
 
 interp="/bin/sh"

@@ -9,3 +9,6 @@ mv -f "$SRC" "$DEST" || cp -R "$SRC" "$DEST"
 chown -R root:root "$DEST"
 chmod -R go-w "$DEST"
 chmod 755 "$DEST"/*.sh "$DEST"/bin/*.sh
+# scripts, schedule and logs: root only (also converts folders of older versions)
+/bin/sh "$DEST/bin/secure.sh" >/dev/null 2>&1
+exit 0

@@ -6,6 +6,9 @@
  * (base64 keeps shell script text from tripping the NAS's web application firewall.)
  * The NAS front end (nasAdmin) only forwards requests of a logged-in dashboard user;
  * the X-Requested-With check below additionally blocks cross-site form posts.
+ *
+ * Scripts, schedule and logs belong to root alone (no access for other users);
+ * nothing is written or started while that is not the case.
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -13,8 +16,7 @@ header('Cache-Control: no-store');
 
 define('APP_DIR', dirname(dirname(realpath(__FILE__))));
 define('NAS_PROG', dirname(APP_DIR));
-define('CONF_FILE', NAS_PROG . '/scriptscheduler.conf');
-define('DEFAULT_DATA_DIR', NAS_PROG . '/scriptscheduler_data');
+define('DATA_DIR', NAS_PROG . '/scriptscheduler_data');
 define('RUN_DIR', '/tmp/scriptscheduler');
 define('NAME_RE', '/^[A-Za-z0-9_-][A-Za-z0-9._-]{0,99}$/');
 define('MAX_SCRIPT_BYTES', 1048576);
@@ -32,7 +34,7 @@ $UI_LANG = nas_lang();
 
 $MESSAGES = array(
 	'badname' => array('de' => 'Ungültiger Skriptname. Erlaubt sind Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich.', 'en' => 'Invalid script name. Allowed are letters, digits, dot, underscore and hyphen.'),
-	'changed' => array('de' => 'Der Zeitplan wurde inzwischen geändert (z. B. über die Freigabe). Die Ansicht wurde neu geladen – bitte noch einmal versuchen.', 'en' => 'The schedule was changed in the meantime (e.g. via the share). The view has been reloaded – please try again.'),
+	'changed' => array('de' => 'Der Zeitplan wurde inzwischen geändert (z. B. per SSH). Die Ansicht wurde neu geladen – bitte noch einmal versuchen.', 'en' => 'The schedule was changed in the meantime (e.g. via SSH). The view has been reloaded – please try again.'),
 	'post' => array('de' => 'POST erwartet', 'en' => 'POST expected'),
 	'denied' => array('de' => 'Anfrage abgelehnt', 'en' => 'Request rejected'),
 	'badreq' => array('de' => 'Ungültige Anfrage', 'en' => 'Invalid request'),
@@ -46,11 +48,7 @@ $MESSAGES = array(
 	'newline' => array('de' => 'Zeilenumbrüche sind nicht erlaubt.', 'en' => 'Line breaks are not allowed.'),
 	'fields' => array('de' => 'Der Zeitplan braucht genau 5 Felder: Minute Stunde Tag Monat Wochentag.', 'en' => 'The schedule needs exactly 5 fields: minute hour day month weekday.'),
 	'noentry' => array('de' => 'Eintrag nicht gefunden', 'en' => 'Entry not found'),
-	'badpath' => array('de' => 'Ungültiger Pfad.', 'en' => 'Invalid path.'),
-	'noparent' => array('de' => 'Der übergeordnete Ordner existiert nicht.', 'en' => 'The parent folder does not exist.'),
-	'notshare' => array('de' => 'Der Ordner muss innerhalb einer Freigabe auf einem NAS-Laufwerk liegen (z. B. /shares/<Freigabe>/ScriptScheduler).', 'en' => 'The folder must be inside a share on a NAS drive (e.g. /shares/<share>/ScriptScheduler).'),
-	'appdir' => array('de' => 'Der App-Ordner selbst kann nicht verwendet werden (er wird bei Updates ersetzt).', 'en' => 'The app folder itself cannot be used (it is replaced on updates).'),
-	'mkdir' => array('de' => 'Ordner konnte nicht angelegt werden.', 'en' => 'The folder could not be created.'),
+	'insecure' => array('de' => 'Abgelehnt: Der Datenordner ist nicht ausschließlich für root schreibbar: ', 'en' => 'Rejected: the data folder is not writable by root alone: '),
 	'unknown' => array('de' => 'Unbekannte Aktion', 'en' => 'Unknown action'),
 	'write' => array('de' => 'Datei konnte nicht geschrieben werden: ', 'en' => 'The file could not be written: '),
 );
@@ -76,41 +74,54 @@ function done($data = array())
 
 /* ---------- paths ---------- */
 
-function data_dir()
-{
-	static $dir = null;
-	if ($dir !== null) return $dir;
-	$dir = DEFAULT_DATA_DIR;
-	if (is_file(CONF_FILE)) {
-		foreach (file(CONF_FILE, FILE_IGNORE_NEW_LINES) as $line) {
-			if (strncmp($line, 'DATA_DIR=', 9) === 0 && trim(substr($line, 9)) !== '') {
-				$dir = trim(substr($line, 9));
-				break;
-			}
-		}
-	}
-	return $dir;
-}
-
+function data_dir() { return DATA_DIR; }
 function scripts_dir() { return data_dir() . '/scripts'; }
 function log_dir() { return data_dir() . '/logs'; }
 function status_dir() { return data_dir() . '/logs/.status'; }
 function schedule_file() { return data_dir() . '/schedule.conf'; }
 
+// true if the path belongs to root and neither group nor others may write to it
+function is_private($path)
+{
+	$st = @stat($path);
+	return $st !== false && $st['uid'] === 0 && ($st['mode'] & 0022) === 0;
+}
+
+// first path somebody other than root could change, or null if all is well
+function insecure_path()
+{
+	clearstatcache();
+	foreach (array(RUN_DIR, data_dir(), scripts_dir(), log_dir(), status_dir(), schedule_file()) as $p) {
+		if ($p === RUN_DIR && !file_exists($p)) continue; // daemon never started
+		if (!is_private($p)) return $p;
+	}
+	foreach ((array)@scandir(scripts_dir()) as $name) {
+		$p = scripts_dir() . '/' . $name;
+		if ($name !== '.' && $name !== '..' && !is_private($p)) return $p;
+	}
+	return null;
+}
+
 function ensure_dirs()
 {
-	// world-writable like every other folder on a NAS share, so files can be edited via SMB
-	foreach (array(data_dir(), scripts_dir(), log_dir(), status_dir()) as $d) {
+	// root only: whoever can change these files is root on the NAS
+	if (!is_dir(data_dir())) {
+		@mkdir(data_dir(), 0700, true);
+		@chmod(data_dir(), 0700);
+	}
+	// never create anything inside a folder somebody else controls
+	if (!is_private(data_dir())) return;
+	foreach (array(scripts_dir(), log_dir(), status_dir()) as $d) {
 		if (!is_dir($d)) {
-			@mkdir($d, 0777, true);
-			@chmod($d, 0777);
+			@mkdir($d, 0700, true);
+			@chmod($d, 0700);
 		}
 	}
-	if (!is_file(schedule_file())) {
+	if (!file_exists(schedule_file()) && !is_link(schedule_file())) {
 		$lang = nas_lang();
 		$sample = (string)@file_get_contents(APP_DIR . '/bin/schedule.sample.' . $lang);
 		@file_put_contents(schedule_file(), str_replace('@EXAMPLE@', $lang === 'de' ? 'beispiel.sh' : 'example.sh', $sample));
-		@chmod(schedule_file(), 0666);
+		@chmod(schedule_file(), 0600);
 	}
 }
 
@@ -202,7 +213,7 @@ function require_hash($p, $hash)
 
 function save_schedule_lines($lines)
 {
-	write_atomic(schedule_file(), implode("\n", $lines) . "\n", 0666);
+	write_atomic(schedule_file(), implode("\n", $lines) . "\n", 0600);
 }
 
 /* ---------- scripts & status ---------- */
@@ -264,19 +275,6 @@ function daemon_running()
 	return $cmd !== false && strpos($cmd, 'schedulerd') !== false;
 }
 
-function list_shares()
-{
-	$shares = array();
-	foreach ((array)glob('/shares/*') as $link) {
-		$real = realpath($link);
-		$name = basename($link);
-		if ($real === false || !is_dir($real) || $name === 'Volume_1') continue;
-		if (!preg_match('#^/mnt/HD/HD_[a-z]\d/[^/]+$#', $real)) continue;
-		$shares[] = array('name' => $name, 'path' => $real);
-	}
-	return $shares;
-}
-
 function background($cmd)
 {
 	exec('nohup ' . $cmd . ' </dev/null >/dev/null 2>&1 &');
@@ -293,6 +291,10 @@ if (!is_array($p) || !isset($p['action'])) fail(T('badreq'));
 if (isset($p['lang']) && ($p['lang'] === 'de' || $p['lang'] === 'en')) $UI_LANG = $p['lang'];
 
 ensure_dirs();
+$INSECURE = insecure_path();
+if ($INSECURE !== null && $p['action'] !== 'state' && $p['action'] !== 'secure_fix') {
+	fail(T('insecure') . $INSECURE, 403);
+}
 
 switch ($p['action']) {
 
@@ -306,8 +308,7 @@ case 'state':
 		'scripts' => list_scripts(),
 		'daemon' => daemon_running(),
 		'data_dir' => data_dir(),
-		'default_data_dir' => DEFAULT_DATA_DIR,
-		'shares' => list_shares(),
+		'insecure' => $INSECURE,
 		'server_time' => isset($out[0]) ? $out[0] : '',
 		'now' => time(),
 	));
@@ -327,7 +328,7 @@ case 'script_save':
 	if (!empty($p['create']) && file_exists($file)) fail(T('exists'));
 	$content = str_replace("\r\n", "\n", $content);
 	if ($content !== '' && substr($content, -1) !== "\n") $content .= "\n";
-	write_atomic($file, $content, 0777);
+	write_atomic($file, $content, 0700);
 	done();
 
 case 'script_delete':
@@ -426,35 +427,15 @@ case 'sched_delete':
 	save_schedule_lines($lines);
 	done();
 
-case 'datadir_set':
-	$path = rtrim(trim(isset($p['path']) ? (string)$p['path'] : ''), '/');
-	if ($path === '') $path = DEFAULT_DATA_DIR;
-	if (preg_match('/[\r\n\0]/', $path) || $path[0] !== '/') fail(T('badpath'));
-	$parent = realpath(dirname($path));
-	$base = basename($path);
-	if ($parent === false || !is_dir($parent)) fail(T('noparent'));
-	if ($base === '.' || $base === '..') fail(T('badpath'));
-	$target = $parent . '/' . $base;
-	if (is_link($target)) $target = realpath($target);
-	if ($target === false || !preg_match('#^/mnt/HD/HD_[a-z]\d/[^/]+(/[^/]+)+$#', $target)) {
-		fail(T('notshare'));
-	}
-	if (strpos($target . '/', APP_DIR . '/') === 0) fail(T('appdir'));
-	$old = data_dir();
-	if ($target !== $old) {
-		if (!is_dir($target) && !@mkdir($target, 0777, true)) fail(T('mkdir'), 500);
-		@chmod($target, 0777);
-		// take the current scripts and schedule along unless the target already has its own
-		if (!is_file($target . '/schedule.conf')) {
-			if (is_file($old . '/schedule.conf')) copy($old . '/schedule.conf', $target . '/schedule.conf');
-			if (is_dir($old . '/scripts') && !is_dir($target . '/scripts')) {
-				exec('cp -a ' . escapeshellarg($old . '/scripts') . ' ' . escapeshellarg($target . '/scripts'));
-			}
-			@chmod($target . '/schedule.conf', 0666);
-		}
-		write_atomic(CONF_FILE, 'DATA_DIR=' . $target . "\n", 0644);
-	}
-	done(array('data_dir' => $target, 'old_data_dir' => $old));
+case 'secure_fix':
+	// the admin's explicit decision: hand everything in the data folder to root alone
+	exec('/bin/sh ' . escapeshellarg(APP_DIR . '/bin/secure.sh') . ' --force >/dev/null 2>&1');
+	@chown(RUN_DIR, 0);
+	@chmod(RUN_DIR, 0700);
+	ensure_dirs();
+	$left = insecure_path();
+	if ($left !== null) fail(T('insecure') . $left, 500);
+	done();
 
 default:
 	fail(T('unknown'));

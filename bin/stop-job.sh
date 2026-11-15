@@ -10,6 +10,7 @@ case "$name" in
 	""|.*|*[!A-Za-z0-9._-]*) exit 2 ;;
 esac
 
+data_trusted >/dev/null || exit 1
 status="$STATUS_DIR/$name"
 [ -f "$status" ] || exit 1
 grep -q '^state=running$' "$status" || exit 1

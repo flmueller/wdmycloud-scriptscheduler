@@ -55,7 +55,7 @@
 #ssch .ssch-days label { margin-right: 8px; white-space: nowrap; }
 #ssch pre.ssch-log { margin: 0; padding: 10px 12px; background: #16202a; color: #dde4ea; border-radius: 4px; min-height: 240px; max-height: 58vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font-family: Consolas, Menlo, "DejaVu Sans Mono", monospace; font-size: 12.5px; line-height: 1.4; }
 #ssch .ssch-hidden { display: none !important; }
-#ssch .ssch-store { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+#ssch .ssch-warn { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; padding: 9px 12px; border-radius: 4px; background: #fde3e1; color: #7d1d1a; }
 </style>
 
 <div id="ssch">
@@ -65,6 +65,7 @@
 		<span id="ssch-time" class="ssch-sub"></span>
 	</div>
 	<div class="ssch-sub" data-th="sub"></div>
+	<div id="ssch-insecure" class="ssch-warn ssch-hidden"><span id="ssch-insecure-text"></span><button type="button" id="ssch-secure-fix" data-t="secureFix">Fix permissions</button></div>
 	<div id="ssch-msg" class="ssch-msg ssch-hidden"></div>
 
 	<div class="ssch-section">
@@ -91,12 +92,7 @@
 
 	<div class="ssch-section">
 		<div class="ssch-bar"><h3 data-t="storage">Storage location</h3></div>
-		<div class="ssch-small" style="margin-bottom:8px" data-th="storageInfo"></div>
-		<div class="ssch-store">
-			<select id="ssch-share"></select>
-			<button type="button" id="ssch-set-datadir" data-t="changeStorage">Change storage location</button>
-		</div>
-		<div class="ssch-small" style="margin-top:8px" data-t="storageWarn"></div>
+		<div class="ssch-small" data-th="storageInfo"></div>
 	</div>
 
 	<!-- schedule entry dialog -->
@@ -196,7 +192,6 @@
 		thLastRun: ["Letzter Lauf", "Last run"],
 		thResult: ["Ergebnis", "Result"],
 		storage: ["Speicherort", "Storage location"],
-		changeStorage: ["Speicherort ändern", "Change storage location"],
 		lRun: ["Ausführen", "Run"],
 		tMinutes: ["alle … Minuten", "every … minutes"],
 		tHourly: ["stündlich", "hourly"],
@@ -226,8 +221,11 @@
 		optional: ["optional", "optional"],
 		phName: ["mein-skript.sh", "my-script.sh"],
 		sub: ["Eigene Shell-Skripte nach Zeitplan ausführen. Skripte laufen als <code>root</code>.", "Run your own shell scripts on a schedule. Scripts run as <code>root</code>."],
-		storageInfo: ["Skripte (<code>scripts/</code>), Zeitplan (<code>schedule.conf</code>) und Protokolle (<code>logs/</code>) liegen in <code id=\"ssch-datadir\"></code>. Liegt der Ordner in einer Freigabe, lassen sich die Dateien auch direkt über das Netzlaufwerk bearbeiten; Änderungen werden innerhalb einer Minute übernommen.", "Scripts (<code>scripts/</code>), the schedule (<code>schedule.conf</code>) and logs (<code>logs/</code>) are stored in <code id=\"ssch-datadir\"></code>. If the folder is inside a share, the files can also be edited directly over the network; changes are picked up within a minute."],
-		storageWarn: ["Achtung: Wer in diesem Ordner schreiben darf, kann Befehle als root auf dem NAS ausführen. Nur eine Freigabe wählen, auf die ausschließlich vertrauenswürdige Benutzer Schreibzugriff haben (nicht „Public“).", "Warning: anyone who can write to this folder can run commands as root on the NAS. Only choose a share that exclusively trusted users can write to (not “Public”)."],
+		storageInfo: ["Skripte (<code>scripts/</code>), Zeitplan (<code>schedule.conf</code>) und Protokolle (<code>logs/</code>) liegen in <code id=\"ssch-datadir\"></code>. Der Ordner gehört <code>root</code> und liegt in keiner Freigabe; andere NAS-Benutzer haben keinen Zugriff. Dateien lassen sich hier oder per SSH bearbeiten.", "Scripts (<code>scripts/</code>), schedule (<code>schedule.conf</code>) and logs (<code>logs/</code>) are stored in <code id=\"ssch-datadir\"></code>. The folder belongs to <code>root</code> and is not part of any share; other NAS users have no access. Files can be edited here or via SSH."],
+		insecure: ["Es werden keine Skripte gestartet: „{0}“ gehört nicht root oder ist für andere Benutzer schreibbar. Wer dort schreiben darf, kann Befehle als root ausführen.", "No scripts are started: “{0}” does not belong to root or is writable by other users. Anyone who can write there can run commands as root."],
+		secureFix: ["Rechte korrigieren", "Fix permissions"],
+		cSecureFix: ["Alle Dateien im Datenordner an root übergeben und für andere Benutzer sperren?\n\nVorher prüfen, dass niemand die Skripte verändert hat – sie laufen danach wieder als root.", "Hand all files in the data folder to root and lock out other users?\n\nFirst make sure nobody has tampered with the scripts – they will run as root again afterwards."],
+		secureDone: ["Rechte korrigiert.", "Permissions fixed."],
 		days: ["So Mo Di Mi Do Fr Sa", "Sun Mon Tue Wed Thu Fri Sat"],
 		newScriptComment: ["Was das Skript ausgibt, landet im Protokoll.", "Everything the script prints ends up in the log."],
 		eSession: ["Nicht angemeldet oder Sitzung abgelaufen. Bitte neu am Dashboard anmelden.", "Not logged in or session expired. Please log in to the dashboard again."],
@@ -248,7 +246,7 @@
 		sAborted: ["abgebrochen", "aborted"],
 		sOk: ["erfolgreich", "successful"],
 		sFail: ["Fehler (Exit-Code {0})", "Failed (exit code {0})"],
-		noScripts: ["Noch keine Skripte. Mit „Neues Skript“ eines anlegen oder Dateien in den Ordner scripts/ kopieren.", "No scripts yet. Use “New script” to create one or copy files into the scripts/ folder."],
+		noScripts: ["Noch keine Skripte. Mit „Neues Skript“ eines anlegen oder Dateien per SSH in den Ordner scripts/ kopieren.", "No scripts yet. Use “New script” to create one or copy files into the scripts/ folder via SSH."],
 		badFile: ["Dateiname nicht verwendbar – erlaubt sind nur Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich (keine Leerzeichen/Umlaute).", "File name cannot be used – only letters, digits, dot, underscore and hyphen are allowed (no spaces or special characters)."],
 		trig_schedule: ["Zeitplan", "schedule"],
 		duration: [", Dauer {0}", ", took {0}"],
@@ -261,8 +259,6 @@
 		svcOn: ["Zeitplan-Dienst läuft", "Scheduler service running"],
 		svcHint: ["Die App ist deaktiviert oder der Dienst wurde beendet. App unter „Apps“ aus- und wieder einschalten.", "The app is disabled or the service was stopped. Switch the app off and on again under “Apps”."],
 		nasTime: ["NAS-Zeit: {0}", "NAS time: {0}"],
-		stInternal: ["Intern (nicht über das Netzwerk erreichbar)", "Internal (not reachable over the network)"],
-		stShare: ["Freigabe „{0}“ → Ordner ScriptScheduler", "Share “{0}” → folder ScriptScheduler"],
 		editEntry: ["Zeitplan-Eintrag bearbeiten", "Edit schedule entry"],
 		needScript: ["Bitte zuerst ein Skript anlegen.", "Please create a script first."],
 		eNumber: ["{0}: bitte eine Zahl von {1} bis {2} eingeben.", "{0}: please enter a number from {1} to {2}."],
@@ -276,9 +272,6 @@
 		sRunning: ["läuft", "running"],
 		logTitle: ["Protokoll: {0}", "Log: {0}"],
 		cClearLog: ["Protokoll von „{0}“ leeren?", "Clear the log of “{0}”?"],
-		stSame: ["Dieser Speicherort ist bereits eingestellt.", "This storage location is already in use."],
-		cStorage: ["Speicherort ändern auf\n{0}?\n\nVorhandene Skripte und der Zeitplan werden dorthin kopiert, falls dort noch keine liegen. Der bisherige Ordner bleibt unverändert bestehen.", "Change the storage location to\n{0}?\n\nExisting scripts and the schedule are copied there unless that folder already has its own. The previous folder is left unchanged."],
-		stChanged: ["Speicherort geändert: {0}", "Storage location changed: {0}"],
 		dMinute: ["Jede Minute", "Every minute"],
 		enable: ["Aktivieren", "Enable"],
 		trig_manual: ["manuell", "manual"],
@@ -496,15 +489,8 @@
 		d.title = state.daemon ? '' : t('svcHint');
 		$('ssch-time').textContent = t('nasTime', state.server_time);
 		$('ssch-datadir').textContent = state.data_dir;
-
-		var sel = $('ssch-share');
-		if (document.activeElement !== sel) {
-			sel.textContent = '';
-			var opts = [{ label: t('stInternal'), path: state.default_data_dir }];
-			state.shares.forEach(function (sh) { opts.push({ label: t('stShare', sh.name), path: sh.path + '/ScriptScheduler' }); });
-			if (!opts.some(function (o) { return o.path === state.data_dir; })) opts.push({ label: state.data_dir, path: state.data_dir });
-			opts.forEach(function (o) { sel.appendChild(el('option', { value: o.path, text: o.label, selected: o.path === state.data_dir })); });
-		}
+		$('ssch-insecure').classList.toggle('ssch-hidden', !state.insecure);
+		$('ssch-insecure-text').textContent = state.insecure ? t('insecure', state.insecure) : '';
 	}
 
 	function refresh() {
@@ -692,13 +678,10 @@
 		this.value = this.value.substring(0, s) + '\t' + this.value.substring(this.selectionEnd);
 		this.selectionStart = this.selectionEnd = s + 1;
 	});
-	$('ssch-set-datadir').addEventListener('click', function () {
-		var path = $('ssch-share').value;
-		if (!state || path === state.data_dir) { showMsg(t('stSame'), true); return; }
-		if (!confirm(t('cStorage', path))) return;
-		api({ action: 'datadir_set', path: path }, function (res) {
-			showMsg(t('stChanged', res.data_dir), true);
-			$('ssch-share').blur();
+	$('ssch-secure-fix').addEventListener('click', function () {
+		if (!confirm(t('cSecureFix'))) return;
+		api({ action: 'secure_fix' }, function () {
+			showMsg(t('secureDone'), true);
 			refresh();
 		});
 	});

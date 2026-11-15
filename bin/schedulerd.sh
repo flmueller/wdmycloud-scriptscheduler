@@ -7,6 +7,7 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 set -f   # no filename expansion when splitting script arguments
 TAB="$(printf '\t')"
+_bad_last=""
 
 mkdir -p "$RUN_DIR"
 if _other="$(daemon_pid)" && [ "$_other" != "$$" ]; then
@@ -19,6 +20,13 @@ trap 'daemon_log "daemon stopped"; [ "$(cat "$PID_FILE" 2>/dev/null)" = "$$" ] &
 dispatch() {
 	load_data_dir
 	[ -f "$SCHEDULE_FILE" ] || return 0
+	if ! _bad="$(data_trusted)"; then
+		# report once, not every minute
+		[ "$_bad" = "$_bad_last" ] || daemon_log "nothing is started: $_bad must belong to root and not be writable by others"
+		_bad_last="$_bad"
+		return 0
+	fi
+	_bad_last=""
 	awk -f "$APP_DIR/bin/cron.awk" "$@" "$SCHEDULE_FILE" | while IFS="$TAB" read -r _trigger _script _args; do
 		daemon_log "starting $_script ($_trigger)"
 		# shellcheck disable=SC2086

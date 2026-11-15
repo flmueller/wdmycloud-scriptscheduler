@@ -29,8 +29,8 @@ installed the same way; scripts, schedule and logs are kept.
 
 ## Files on the NAS
 
-Data folder (change it in the app under "Storage location", default
-`/mnt/HD/HD_a2/Nas_Prog/scriptscheduler_data`):
+Data folder `/mnt/HD/HD_a2/Nas_Prog/scriptscheduler_data` (owned by root, not
+part of any share; edit the files in the app or via SSH):
 
     schedule.conf      the schedule (cron syntax, see the comment in the file)
     scripts/           your scripts
@@ -51,13 +51,21 @@ take effect from the next minute.
 - Scheduling is done by a small daemon of its own (`bin/schedulerd.sh`),
   independent of the firmware's crontab, which is regenerated on every boot.
 - Disabling the app in the dashboard stops all scheduled runs.
-- Uninstalling keeps the data folder and `Nas_Prog/scriptscheduler.conf`.
+- Uninstalling keeps the data folder.
 
 ## Security
 
-Anyone who can write to the data folder can run commands as root. If the folder
-is inside a share, that share must be writable by trusted users only (not
-"Public"). The web interface is only reachable for a logged-in dashboard user.
+Whoever can change a script or the schedule is root on the NAS. Therefore the
+data folder, the scripts and the schedule must belong to root and must not be
+writable by anyone else; the app creates them that way (folders 700, files
+600/700) and starts nothing while this is not the case. The web page then shows
+a warning with a button that hands all files back to root. The web interface is
+only reachable for a logged-in dashboard user.
+
+Up to version 1.2.0 the data folder could be placed in a share and was
+world-writable. Installing 1.3.0 moves scripts and schedule back to
+`Nas_Prog/scriptscheduler_data` (the folder in the share is left in place) and
+restricts the permissions.
 
 ## License
 
@@ -89,8 +97,8 @@ genauso installieren; Skripte, Zeitplan und Protokolle bleiben erhalten.
 
 ### Dateien auf dem NAS
 
-Datenordner (in der App unter „Speicherort“ änderbar, Standard
-`/mnt/HD/HD_a2/Nas_Prog/scriptscheduler_data`):
+Datenordner `/mnt/HD/HD_a2/Nas_Prog/scriptscheduler_data` (gehört root, liegt in
+keiner Freigabe; Dateien in der App oder per SSH bearbeiten):
 
     schedule.conf      Zeitplan (Cron-Syntax, siehe Kommentar in der Datei)
     scripts/           die Skripte
@@ -111,11 +119,18 @@ deaktiviert einen Eintrag. Änderungen an den Dateien wirken ab der nächsten Mi
 - Der Zeitplan läuft über einen eigenen kleinen Dienst (`bin/schedulerd.sh`),
   unabhängig vom crontab der Firmware, der bei jedem Neustart neu erzeugt wird.
 - Wird die App im Dashboard deaktiviert, starten keine Skripte mehr.
-- Beim Deinstallieren bleiben der Datenordner und
-  `/mnt/HD/HD_a2/Nas_Prog/scriptscheduler.conf` bewusst erhalten.
+- Beim Deinstallieren bleibt der Datenordner bewusst erhalten.
 
 ### Sicherheit
 
-Wer im Datenordner schreiben darf, kann Befehle als root ausführen. Liegt der
-Ordner in einer Freigabe, darf diese nur für vertrauenswürdige Benutzer
-schreibbar sein (nicht „Public“).
+Wer ein Skript oder den Zeitplan ändern kann, ist root auf dem NAS. Datenordner,
+Skripte und Zeitplan müssen deshalb root gehören und dürfen für niemanden sonst
+schreibbar sein. Die App legt sie so an (Ordner 700, Dateien 600/700) und startet
+nichts, solange das nicht erfüllt ist. Die Web-Oberfläche zeigt dann eine Warnung
+mit einem Knopf, der alle Dateien wieder root übergibt. Die Web-Oberfläche ist nur
+für am Dashboard angemeldete Benutzer erreichbar.
+
+Bis Version 1.2.0 konnte der Datenordner in einer Freigabe liegen und war für alle
+schreibbar. Die Installation von 1.3.0 holt Skripte und Zeitplan zurück nach
+`Nas_Prog/scriptscheduler_data` (der Ordner in der Freigabe bleibt liegen) und
+schränkt die Rechte ein.

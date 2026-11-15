@@ -1,7 +1,7 @@
 #!/bin/sh
 # $1 = app path. Uninstall (also runs during an update).
-# The data folder (scripts, schedule, logs) and scriptscheduler.conf next to the
-# app folder are kept on purpose; delete them by hand if you no longer need them.
+# The data folder (scripts, schedule, logs) next to the app folder is kept on
+# purpose; delete it by hand if you no longer need it.
 APP_DIR="$1"
 
 [ -x "$APP_DIR/stop.sh" ] && "$APP_DIR/stop.sh" "$APP_DIR"
